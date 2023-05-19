@@ -1,9 +1,16 @@
 package core
 
-import "net/http"
+import (
+	"crypto/tls"
+	"net/http"
+)
 
 func FetchUserInfo(userInfoEndpoint, accessToken string) (UserInfoResponse, error) {
-	client := &http.Client{}
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
 
 	request, createRequestErr := http.NewRequest("GET", userInfoEndpoint, nil)
 

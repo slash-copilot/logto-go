@@ -13,6 +13,7 @@ type FetchTokenByAuthorizationCodeOptions struct {
 	ClientId      string
 	RedirectUri   string
 	Resource      string
+	ClientSecret  string
 }
 
 func FetchTokenByAuthorizationCode(client *http.Client, options *FetchTokenByAuthorizationCodeOptions) (CodeTokenResponse, error) {
@@ -28,7 +29,13 @@ func FetchTokenByAuthorizationCode(client *http.Client, options *FetchTokenByAut
 		values.Add("resource", options.Resource)
 	}
 
-	response, requestErr := client.PostForm(options.TokenEndpoint, values)
+	req, err := http.NewRequest("POST", options.TokenEndpoint, strings.NewReader(values.Encode()))
+	if err != nil {
+		return CodeTokenResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(options.ClientId, options.ClientSecret)
+	response, requestErr := client.Do(req)
 
 	if requestErr != nil {
 		return CodeTokenResponse{}, requestErr
@@ -37,7 +44,7 @@ func FetchTokenByAuthorizationCode(client *http.Client, options *FetchTokenByAut
 	defer response.Body.Close()
 
 	var codeTokenResponse CodeTokenResponse
-	err := parseDataFromResponse(response, &codeTokenResponse)
+	err = parseDataFromResponse(response, &codeTokenResponse)
 
 	if err != nil {
 		return CodeTokenResponse{}, err

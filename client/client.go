@@ -157,3 +157,23 @@ func (logtoClient *LogtoClient) FetchUserInfo() (core.UserInfoResponse, error) {
 
 	return core.FetchUserInfo(oidcConfig.UserinfoEndpoint, accessToken.Token)
 }
+
+func (logtoClient *LogtoClient) UpdateUserInfo(customData interface{}) error {
+	if !logtoClient.IsAuthenticated() {
+		return ErrNotAuthenticated
+	}
+
+	oidcConfig, fetchOidcConfigErr := logtoClient.fetchOidcConfig()
+
+	if fetchOidcConfigErr != nil {
+		return fetchOidcConfigErr
+	}
+
+	accessToken, getAccessTokenErr := logtoClient.GetAccessToken("")
+
+	if getAccessTokenErr != nil {
+		return getAccessTokenErr
+	}
+
+	return core.UpdateUserCustomData(oidcConfig.UserinfoEndpoint, accessToken.Token, customData)
+}

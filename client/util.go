@@ -1,6 +1,7 @@
 package client
 
 import (
+	"crypto/tls"
 	"net/http"
 	"net/url"
 	"sort"
@@ -28,6 +29,7 @@ func getRequestProtocol(request *http.Request) string {
 func createHttpClient(logtoConfig *LogtoConfig) *http.Client {
 	defaultTransport := http.DefaultTransport.(*http.Transport)
 	customTransport := defaultTransport.Clone()
+	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	customTransport.Proxy = func(req *http.Request) (*url.URL, error) {
 		if logtoConfig.AppSecret != "" {
 			req.SetBasicAuth(logtoConfig.AppId, logtoConfig.AppSecret)
