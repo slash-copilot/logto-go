@@ -16,6 +16,13 @@ type FetchTokenByAuthorizationCodeOptions struct {
 	Resource      string
 }
 
+type FetchTokenByCredentialsOptions struct {
+	TokenEndpoint string
+	ClientId      string
+	ClientSecret  string	
+	Resource      string
+}
+
 func FetchTokenByAuthorizationCode(client *http.Client, options *FetchTokenByAuthorizationCodeOptions) (CodeTokenResponse, error) {
 	values := url.Values{
 		"client_id":     {options.ClientId},
@@ -110,4 +117,44 @@ func FetchTokenByRefreshToken(client *http.Client, options *FetchTokenByRefreshT
 	}
 
 	return refreshTokenResponse, nil
+}
+
+func FetchTokenByCredentials(client *http.Client, options *FetchTokenByCredentialsOptions) (CodeTokenResponse, error) {
+	values := url.Values{		
+		"grant_type":    {"client_credentials"},
+		"scope": 	  {"all"},
+	}
+
+	if options.Resource != "" {
+		values.Add("resource", options.Resource)
+	}
+
+	request, createRequestErr := http.NewRequest("POST", options.TokenEndpoint, strings.NewReader(values.Encode()))
+
+	if createRequestErr != nil {
+		return CodeTokenResponse{}, createRequestErr
+	}
+
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	if options.ClientSecret != "" {
+		request.SetBasicAuth(options.ClientId, options.ClientSecret)
+	}
+
+	response, requestErr := client.Do(request)
+
+	if requestErr != nil {
+		return CodeTokenResponse{}, requestErr
+	}
+
+	defer response.Body.Close()
+
+	var codeTokenResponse CodeTokenResponse
+	err := parseDataFromResponse(response, &codeTokenResponse)
+
+	if err != nil {
+		return RefreshTokenResponse{}, err
+	}
+
+	return codeTokenResponse, nil
 }

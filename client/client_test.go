@@ -3,6 +3,7 @@ package client
 import (
 	"errors"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -253,4 +254,54 @@ func TestFetchUserInfoShouldReturnErrorIfGetAccessTokenFailed(t *testing.T) {
 	_, fetchUserInfoErr := logtoClient.FetchUserInfo()
 
 	assert.Equal(t, testGetAccessTokenErr, fetchUserInfoErr)
+}
+
+func TestNewMachineAppClient(t *testing.T) {
+	logtoClient := NewLogtoClient(
+		&LogtoConfig{
+			Endpoint:  os.Getenv("LOGTO_MACHINE_APP_ENDPOINT"),
+			AppId:     os.Getenv("LOGTO_MACHINE_APP_ID"),
+			AppSecret: os.Getenv("LOGTO_MACHINE_APP_SECRET"),
+			Resources: []string{
+				os.Getenv("LOGTO_MACHINE_APP_RESOURCE"),
+			},		
+		},
+		NewMemoryStorage(),
+	)
+
+	accessToken, getAccessTokenErr := logtoClient.GetMachineAccessToken(os.Getenv("LOGTO_MACHINE_APP_RESOURCE"))
+
+	assert.Nil(t, getAccessTokenErr)
+	assert.NotEmpty(t, accessToken.Token)
+
+
+	// check if use cache resp
+	accessToken2, getAccessTokenErr2 := logtoClient.GetMachineAccessToken(os.Getenv("LOGTO_MACHINE_APP_RESOURCE"))
+
+	assert.Nil(t, getAccessTokenErr2)
+	assert.Equal(t, accessToken.Token, accessToken2.Token)
+}
+
+
+func TestUpdateUserPassword(t *testing.T) {
+	logtoClient := NewLogtoClient(
+		&LogtoConfig{
+			Endpoint:  os.Getenv("LOGTO_MACHINE_APP_ENDPOINT"),
+			AppId:     os.Getenv("LOGTO_MACHINE_APP_ID"),
+			AppSecret: os.Getenv("LOGTO_MACHINE_APP_SECRET"),
+			Resources: []string{
+				os.Getenv("LOGTO_MACHINE_APP_RESOURCE"),
+			},		
+		},
+		NewMemoryStorage(),
+	)
+
+	accessToken, getAccessTokenErr := logtoClient.GetMachineAccessToken(os.Getenv("LOGTO_MACHINE_APP_RESOURCE"))
+
+	assert.Nil(t, getAccessTokenErr)
+	assert.NotEmpty(t, accessToken.Token)
+
+	err := logtoClient.UpdateUserPassword(os.Getenv("LOGTO_TEST_USER_ID"), os.Getenv("LOGTO_TEST_USER_PASSWORD"))
+
+	assert.Nil(t, err)
 }

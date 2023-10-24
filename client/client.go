@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -139,6 +140,52 @@ func (logtoClient *LogtoClient) GetAccessToken(resource string) (AccessToken, er
 	return refreshedAccessToken, nil
 }
 
+func (logtoClient *LogtoClient) GetMachineAccessToken(resource string) (AccessToken, error) {
+	accessTokenKey := buildAccessTokenKey([]string{}, resource)
+	
+	if accessToken, ok := logtoClient.accessTokenMap[accessTokenKey]; ok {
+		if accessToken.ExpiresAt > time.Now().Unix() {
+			return accessToken, nil
+		}
+	}
+
+	oidcConfig, fetchOidcConfigErr := logtoClient.fetchOidcConfig()
+
+	if fetchOidcConfigErr != nil {
+		return AccessToken{}, fetchOidcConfigErr
+	}
+
+	codeToken, codeTokenErr := core.FetchTokenByCredentials(logtoClient.httpClient, &core.FetchTokenByCredentialsOptions{
+		TokenEndpoint: oidcConfig.TokenEndpoint,
+		ClientId:      logtoClient.logtoConfig.AppId,
+		ClientSecret:  logtoClient.logtoConfig.AppSecret,
+		Resource:      resource,
+	})
+
+	if codeTokenErr != nil {
+		return AccessToken{}, codeTokenErr
+	}
+
+	newAccessToken := AccessToken{
+		Token:     codeToken.AccessToken,
+		Scope:     codeToken.Scope,
+		ExpiresAt: time.Now().Unix() + int64(codeToken.ExpireIn),
+	}
+
+	verificationErr := logtoClient.verifyAndSaveTokenResponse(
+		codeToken.IdToken,
+		codeToken.RefreshToken,
+		newAccessToken,
+		&oidcConfig,
+	)
+
+	if verificationErr != nil {
+		return AccessToken{}, verificationErr
+	}
+
+	return newAccessToken, nil
+}
+
 func (logtoClient *LogtoClient) FetchUserInfo() (core.UserInfoResponse, error) {
 	if !logtoClient.IsAuthenticated() {
 		return core.UserInfoResponse{}, ErrNotAuthenticated
@@ -157,4 +204,32 @@ func (logtoClient *LogtoClient) FetchUserInfo() (core.UserInfoResponse, error) {
 	}
 
 	return core.FetchUserInfo(oidcConfig.UserinfoEndpoint, accessToken.Token)
+}
+
+
+func (logtoClient *LogtoClient) UpdateUserInfo(userId string, customData interface{}) error {
+	accessToken, getAccessTokenErr := logtoClient.GetMachineAccessToken(logtoClient.logtoConfig.Resources[0])
+
+	if getAccessTokenErr != nil {
+		return getAccessTokenErr
+	}
+
+	endpoint := fmt.Sprintf("%s/api/users/%s", logtoClient.logtoConfig.Endpoint, userId)
+
+	return core.UpdateUserCustomData(endpoint, accessToken.Token, customData)
+}
+
+
+
+func (logtoClient *LogtoClient) UpdateUserPassword(userId string, newPassword string) error {
+
+	accessToken, getAccessTokenErr := logtoClient.GetMachineAccessToken(logtoClient.logtoConfig.Resources[0])
+
+	if getAccessTokenErr != nil {
+		return getAccessTokenErr
+	}
+
+	endpoint := fmt.Sprintf("%s/api/users/%s/password", logtoClient.logtoConfig.Endpoint, userId)
+
+	return core.UpdateUserPassword(endpoint, accessToken.Token, userId, newPassword)
 }
