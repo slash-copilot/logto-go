@@ -33,11 +33,15 @@ func UpdateUserPassword(endpoint string, accessToken string, userId string, newP
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	response, requestErr := client.Do(req)
 
 	if requestErr != nil {
 		return requestErr
+	}
+
+	if response.StatusCode == 401 {
+		return ErrorUnAuthorized
 	}
 
 	defer response.Body.Close()

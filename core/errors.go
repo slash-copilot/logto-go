@@ -11,4 +11,5 @@ var (
 	ErrCallbackUriNotMatchRedirectUri = errors.New("callback uri not match redirect uri")
 	ErrStateNotMatch                  = errors.New("state not match")
 	ErrCodeNotFoundInCallbackUri      = errors.New("code not found in callback uri")
+	ErrorUnAuthorized                 = errors.New("unauthorized")
 )
